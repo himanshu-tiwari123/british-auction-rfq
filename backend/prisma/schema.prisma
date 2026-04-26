@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(SUPPLIER)
+  createdAt DateTime @default(now())
+
+  rfqs      Rfq[]
+  bids      Bid[]
+}
+
+enum Role {
+  BUYER
+  SUPPLIER
+}
+
+model Rfq {
+  id                    Int              @id @default(autoincrement())
+  referenceId           String           @unique
+  name                  String
+  pickupDate            DateTime
+  bidStartTime          DateTime
+  bidCloseTime          DateTime
+  forcedBidCloseTime    DateTime
+
+  triggerWindowMins     Int
+  extensionDurationMins Int
+  extensionTrigger      ExtensionTrigger
+
+  status                AuctionStatus    @default(UPCOMING)
+  createdAt             DateTime         @default(now())
+
+  buyerId               Int
+  buyer                 User             @relation(fields: [buyerId], references: [id])
+
+  bids                  Bid[]
+  extensionLogs         AuctionExtensionLog[]
+}
+
+enum ExtensionTrigger {
+  BID_RECEIVED
+  ANY_RANK_CHANGE
+  L1_RANK_CHANGE
+}
+
+enum AuctionStatus {
+  UPCOMING
+  ACTIVE
+  CLOSED
+  FORCE_CLOSED
+}
+
+model Bid {
+  id                 Int      @id @default(autoincrement())
+  rfqId              Int
+  supplierId         Int
+
+  carrierName        String
+  freightCharges     Float
+  originCharges      Float
+  destinationCharges Float
+  totalCharges       Float
+  transitTimeDays    Int
+  quoteValidity      DateTime
+
+  rank               Int?
+  submittedAt        DateTime @default(now())
+
+  rfq                Rfq      @relation(fields: [rfqId], references: [id])
+  supplier           User     @relation(fields: [supplierId], references: [id])
+}
+
+model AuctionExtensionLog {
+  id            Int      @id @default(autoincrement())
+  rfqId         Int
+  previousClose DateTime
+  newClose      DateTime
+  reason        String
+  triggeredAt   DateTime @default(now())
+
+  rfq           Rfq      @relation(fields: [rfqId], references: [id])
+}
